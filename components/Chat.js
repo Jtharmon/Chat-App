@@ -1,12 +1,10 @@
+import React, { useEffect, useState } from "react";
 import { StyleSheet, View, KeyboardAvoidingView, Platform } from "react-native";
-import { useEffect, useState } from "react";
 import { Bubble, GiftedChat, InputToolbar } from "react-native-gifted-chat";
 import { onSnapshot, collection, orderBy, query, addDoc } from "firebase/firestore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import MapView from "react-native-maps";
 import { createStackNavigator } from "@react-navigation/stack";
-
-
 
 const Chat = ({ db, storage, route, navigation, isConnected }) => {
   const { name, color, userID } = route.params;
@@ -32,6 +30,15 @@ const Chat = ({ db, storage, route, navigation, isConnected }) => {
       const q = query(collection(db, "messages"), orderBy("createdAt", "desc"));
       unsubMessages = onSnapshot(q, (docSnap) => {
         let msgList = [];
+
+        // Add system message
+        msgList.push({
+          _id: Math.random().toString(),
+          text: "Welcome to the chat!",
+          createdAt: new Date(),
+          system: true,
+        });
+
         docSnap.forEach((doc) => {
           msgList.push({
             id: doc.id,
@@ -39,6 +46,18 @@ const Chat = ({ db, storage, route, navigation, isConnected }) => {
             createdAt: new Date(doc.data().createdAt.toMillis()),
           });
         });
+
+        // Add user message
+        msgList.push({
+          _id: Math.random().toString(),
+          text: "Hello, this is a user message.",
+          createdAt: new Date(),
+          user: {
+            _id: userID,
+            name: name,
+          },
+        });
+
         cacheMessages(msgList);
         setMessages(msgList);
       });
@@ -133,18 +152,24 @@ const Chat = ({ db, storage, route, navigation, isConnected }) => {
     // Set background color according to given prop color from start screen
     <View style={[styles.container, { backgroundColor: color }]}>
       {/* Chat */}
-      <GiftedChat
-        messages={messages}
-        renderBubble={renderBubble}
-        renderInputToolbar={renderInputToolbar}
-        renderActions={renderCustomActions}
-        renderCustomView={renderCustomView}
-        onSend={onSend}
-        user={{ _id: userID, name }}
-      />
-      {Platform.OS === "android" ? (
-        <KeyboardAvoidingView behavior="height" />
-      ) : null}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : null}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0} // Adjust the value as needed
+      >
+        <GiftedChat
+          messages={messages}
+          renderBubble={renderBubble}
+          renderInputToolbar={renderInputToolbar}
+          renderActions={renderCustomActions}
+          renderCustomView={renderCustomView}
+          onSend={onSend}
+          user={{ _id: userID, name }}
+        />
+      </KeyboardAvoidingView>
+      {Platform.OS === 'android' && (
+        <KeyboardAvoidingView behavior="padding" keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0} />
+      )}
     </View>
   );
 };
