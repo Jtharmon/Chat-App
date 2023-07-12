@@ -1,181 +1,157 @@
-import React, { useEffect, useState } from "react";
-import { StyleSheet, View, KeyboardAvoidingView, Platform } from "react-native";
+import { useEffect, useState } from "react";
+import { KeyboardAvoidingView, StyleSheet, View } from "react-native";
 import { Bubble, GiftedChat, InputToolbar } from "react-native-gifted-chat";
-import { onSnapshot, collection, orderBy, query, addDoc } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  onSnapshot,
+  query,
+  orderBy,
+} from "firebase/firestore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+//import CustomActions from "./CustomActions";
 import MapView from "react-native-maps";
-import { createStackNavigator } from "@react-navigation/stack";
 
-const Chat = ({ db, storage, route, navigation, isConnected }) => {
+const Chat = ({ isConnected, db, route, navigation, storage }) => {
   const { name, color, userID } = route.params;
   const [messages, setMessages] = useState([]);
 
   let unsubMessages;
 
   useEffect(() => {
-    // Set screen title according to given name from prop
     navigation.setOptions({ title: name });
-
-    /**
-     * If the user is connected to the internet, register a listener to the database
-     * to read messages. If the user is offline, load messages from offline storage.
-     */
     if (isConnected === true) {
-      // Unregister current onSnapshot() listener to avoid registering multiple
-      // listeners when useEffect code is re-executed.
       if (unsubMessages) unsubMessages();
       unsubMessages = null;
-
-      // Create stream with database to read messages
       const q = query(collection(db, "messages"), orderBy("createdAt", "desc"));
-      unsubMessages = onSnapshot(q, (docSnap) => {
-        let msgList = [];
-
-        // Add system message
-        msgList.push({
-          _id: Math.random().toString(),
-          text: "Welcome to the chat!",
-          createdAt: new Date(),
-          system: true,
-        });
-
-        docSnap.forEach((doc) => {
-          msgList.push({
+      unsubMessages = onSnapshot(q, (docs) => {
+        let newMessages = [];
+        docs.forEach((doc) => {
+          newMessages.push({
             id: doc.id,
             ...doc.data(),
             createdAt: new Date(doc.data().createdAt.toMillis()),
           });
         });
-
-        // Add user message
-        msgList.push({
-          _id: Math.random().toString(),
-          text: "Hello, this is a user message.",
-          createdAt: new Date(),
-          user: {
-            _id: userID,
-            name: name,
-          },
-        });
-
-        cacheMessages(msgList);
-        setMessages(msgList);
+        cacheMessages(newMessages);
+        setMessages(newMessages);
       });
-    } else {
-      loadCachedMessages();
-    }
-
-    // Clean up code
+    } else loadCachedMessages();
     return () => {
       if (unsubMessages) unsubMessages();
     };
   }, [isConnected]);
+// Get messages from offline storage
+const loadCachedMessages = async () => {
+  try {
+    const cachedChat = await AsyncStorage.getItem("chat");
+    if (cachedChat) {
+      const parsedChat = JSON.parse(cachedChat);
+      setMessages(parsedChat);
+    } else {
+      setMessages([]);
+    }
+  } catch (error) {
+    console.log("Error loading cached messages:", error.message);
+    setMessages([]);
+  }
+};
 
-  // Save messages to offline storage
-  const cacheMessages = async (messagesToCache) => {
-    try {
-      await AsyncStorage.setItem("chat", JSON.stringify(messagesToCache));
-    } catch (error) {
-      console.log(error.message);
+  const addMessagesItem = async (newMessage) => {
+    const newMessageRef = await addDoc(
+      collection(db, "messages"),
+      newMessage[0]
+    );
+    if (!newMessageRef.id) {
+      Alert.alert(
+        "There was an error sending your message. Please try again later"
+      );
     }
   };
 
-  // Get messages from offline storage
-  const loadCachedMessages = async () => {
-    const cachedChat = await AsyncStorage.getItem("chat");
-    cachedChat ? setMessages(JSON.parse(cachedChat)) : setMessages([]);
+  const onSend = (newMessages) => {
+    addMessagesItem(newMessages);
   };
 
-  // Append new message to firestore
-  const onSend = async (newMessages) => {
-    await addDoc(collection(db, "messages"), newMessages[0]);
+  const renderInputToolbar = (props) => {
+    if (isConnected) {
+      return <InputToolbar {...props} />;
+    } else {
+      return null;
+    }
   };
 
-  // Customize chat bubble
   const renderBubble = (props) => {
     return (
       <Bubble
         {...props}
-        wrapperStyle={{
-          right: { backgroundColor: "#004d01" },
-          left: { backgroundColor: "#010f78" },
-        }}
         textStyle={{
-          left: { color: "#fff" },
+          right: {
+            color:
+              (color === "white") | (color === "yellow") ? "black" : "white",
+          },
+        }}
+        wrapperStyle={{
+          right: {
+            backgroundColor: color,
+          },
+          left: {
+            backgroundColor: "#FFF",
+          },
         }}
       />
     );
   };
 
-  // Only render text input toolbar when online
-  const renderInputToolbar = (props) => {
-    if (isConnected) return <InputToolbar {...props} />;
-    else return null;
-  };
-
-  // Render custom action component
   const renderCustomActions = (props) => {
-    return <CustomActions storage={storage} userID={userID} {...props} />;
+    return <CustomActions storage={storage} {...props} />;
   };
 
-  // Render element with map and geolocation
   const renderCustomView = (props) => {
     const { currentMessage } = props;
     if (currentMessage.location) {
       return (
-        <View
-          style={{
-            borderRadius: 13,
-            margin: 3,
-            overflow: "hidden",
+        <MapView
+          style={{ width: 150, height: 100, borderRadius: 13, margin: 3 }}
+          region={{
+            latitude: currentMessage.location.latitude,
+            longitude: currentMessage.location.longitude,
+            latitudeDelta: 0.0922,
+            longitudeDelta: 0.0421,
           }}
-        >
-          <MapView
-            style={{
-              width: 150,
-              height: 100,
-            }}
-            region={{
-              latitude: currentMessage.location.latitude,
-              longitude: currentMessage.location.longitude,
-              latitudeDelta: 0.0922,
-              longitudeDelta: 0.0421,
-            }}
-          />
-        </View>
+        />
       );
     }
     return null;
   };
 
   return (
-    // Set background color according to given prop color from start screen
-    <View style={[styles.container, { backgroundColor: color }]}>
-      {/* Chat */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : null}
-        style={{ flex: 1 }}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0} // Adjust the value as needed
-      >
-        <GiftedChat
-          messages={messages}
-          renderBubble={renderBubble}
-          renderInputToolbar={renderInputToolbar}
-          renderActions={renderCustomActions}
-          renderCustomView={renderCustomView}
-          onSend={onSend}
-          user={{ _id: userID, name }}
-        />
-      </KeyboardAvoidingView>
-      {Platform.OS === 'android' && (
-        <KeyboardAvoidingView behavior="padding" keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0} />
-      )}
+    <View style={styles.container}>
+      <GiftedChat
+        style={styles.textingBox}
+        messages={messages}
+        renderBubble={renderBubble}
+        renderInputToolbar={renderInputToolbar}
+        renderActions={renderCustomActions}
+        renderCustomView={renderCustomView}
+        onSend={(messages) => onSend(messages)}
+        user={{
+          _id: userID,
+        }}
+        name={{ name: name }}
+      />
+      {Platform.OS === "android" ? (
+        <KeyboardAvoidingView behavior='height' />
+      ) : null}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  textingBox: {
     flex: 1,
   },
 });
