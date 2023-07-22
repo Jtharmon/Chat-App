@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { KeyboardAvoidingView, StyleSheet, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import { KeyboardAvoidingView, StyleSheet, View, Platform } from "react-native";
 import { Bubble, GiftedChat, InputToolbar } from "react-native-gifted-chat";
 import {
   collection,
@@ -9,68 +9,67 @@ import {
   orderBy,
 } from "firebase/firestore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-//import CustomActions from "./CustomActions";
 import MapView from "react-native-maps";
 
 const Chat = ({ isConnected, db, route, navigation, storage }) => {
   const { name, color, userID } = route.params;
   const [messages, setMessages] = useState([]);
 
-  let unsubMessages;
-
   useEffect(() => {
     navigation.setOptions({ title: name });
-    if (isConnected === true) {
-      if (unsubMessages) unsubMessages();
-      unsubMessages = null;
+    if (isConnected) {
       const q = query(collection(db, "messages"), orderBy("createdAt", "desc"));
-      unsubMessages = onSnapshot(q, (docs) => {
-        let newMessages = [];
+      const unsubMessages = onSnapshot(q, (docs) => {
+        const newMessages = [];
         docs.forEach((doc) => {
           newMessages.push({
-            id: doc.id,
+            _id: doc.id,
             ...doc.data(),
             createdAt: new Date(doc.data().createdAt.toMillis()),
           });
         });
-        cacheMessages(newMessages);
         setMessages(newMessages);
+        cacheMessages(newMessages);
       });
-    } else loadCachedMessages();
-    return () => {
-      if (unsubMessages) unsubMessages();
-    };
-  }, [isConnected]);
-// Get messages from offline storage
-const loadCachedMessages = async () => {
-  try {
-    const cachedChat = await AsyncStorage.getItem("chat");
-    if (cachedChat) {
-      const parsedChat = JSON.parse(cachedChat);
-      setMessages(parsedChat);
+
+      return () => unsubMessages();
     } else {
+      loadCachedMessages();
+    }
+  }, [isConnected]);
+
+  const loadCachedMessages = async () => {
+    try {
+      const cachedChat = await AsyncStorage.getItem("chat");
+      if (cachedChat) {
+        const parsedChat = JSON.parse(cachedChat);
+        setMessages(parsedChat);
+      } else {
+        setMessages([]);
+      }
+    } catch (error) {
+      console.log("Error loading cached messages:", error.message);
       setMessages([]);
     }
-  } catch (error) {
-    console.log("Error loading cached messages:", error.message);
-    setMessages([]);
-  }
-};
+  };
 
-  const addMessagesItem = async (newMessage) => {
-    const newMessageRef = await addDoc(
-      collection(db, "messages"),
-      newMessage[0]
-    );
+  const cacheMessages = async (messages) => {
+    try {
+      await AsyncStorage.setItem("chat", JSON.stringify(messages));
+    } catch (error) {
+      console.log("Error caching messages:", error.message);
+    }
+  };
+
+  const addMessage = async (newMessage) => {
+    const newMessageRef = await addDoc(collection(db, "messages"), newMessage[0]);
     if (!newMessageRef.id) {
-      Alert.alert(
-        "There was an error sending your message. Please try again later"
-      );
+      Alert.alert("There was an error sending your message. Please try again later");
     }
   };
 
   const onSend = (newMessages) => {
-    addMessagesItem(newMessages);
+    addMessage(newMessages);
   };
 
   const renderInputToolbar = (props) => {
@@ -87,8 +86,7 @@ const loadCachedMessages = async () => {
         {...props}
         textStyle={{
           right: {
-            color:
-              (color === "white") | (color === "yellow") ? "black" : "white",
+            color: (color === "white" || color === "yellow") ? "black" : "white",
           },
         }}
         wrapperStyle={{
@@ -101,10 +99,6 @@ const loadCachedMessages = async () => {
         }}
       />
     );
-  };
-
-  const renderCustomActions = (props) => {
-    return <CustomActions storage={storage} {...props} />;
   };
 
   const renderCustomView = (props) => {
@@ -125,6 +119,27 @@ const loadCachedMessages = async () => {
     return null;
   };
 
+  useEffect(() => {
+    const systemMessage = {
+      _id: 1,
+      text: "Welcome to the chat!",
+      createdAt: new Date(),
+      system: true,
+    };
+
+    const userMessage = {
+      _id: 2,
+      text: "Hello, how are you?",
+      createdAt: new Date(),
+      user: {
+        _id: userID,
+        name: name,
+      },
+    };
+
+    setMessages([systemMessage, userMessage]);
+  }, []);
+
   return (
     <View style={styles.container}>
       <GiftedChat
@@ -132,17 +147,15 @@ const loadCachedMessages = async () => {
         messages={messages}
         renderBubble={renderBubble}
         renderInputToolbar={renderInputToolbar}
-        renderActions={renderCustomActions}
         renderCustomView={renderCustomView}
-        onSend={(messages) => onSend(messages)}
+        onSend={onSend}
         user={{
           _id: userID,
         }}
-        name={{ name: name }}
       />
-      {Platform.OS === "android" ? (
-        <KeyboardAvoidingView behavior='height' />
-      ) : null}
+      {Platform.OS === "android" && (
+        <KeyboardAvoidingView behavior="height" />
+      )}
     </View>
   );
 };
