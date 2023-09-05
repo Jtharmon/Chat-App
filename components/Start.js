@@ -89,6 +89,7 @@ export default class Start extends React.Component {
                         style={[styles.nameBox, styles.chatBox]}
                        // title='Go to Chat'
                         onPress={() => 
+                            // console.log("start",this.props)
                         this.props.navigation.navigate('Chat', 
                         {
                              name: this.state.name, 
