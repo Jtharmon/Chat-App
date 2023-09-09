@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { StyleSheet, View, Text, KeyboardAvoidingView, Platform } from 'react-native';
 import { GiftedChat, Bubble } from "react-native-gifted-chat";
 
-const Chat = ({ route, navigation }) => {
+const Chat = ({ route, navigation, db, isConnected }) => {
   const { name, color } = route.params;  //Brings name and bg color selected to Chat
   const [messages, setMessages] = useState([]);
 
@@ -46,6 +46,7 @@ const Chat = ({ route, navigation }) => {
         createdAt: new Date(),
         system: true,
       },
+
     
     ]);
   }, []);
@@ -77,7 +78,3 @@ const styles = StyleSheet.create({
 });
 
 export default Chat;
-    
-    
-    
-    

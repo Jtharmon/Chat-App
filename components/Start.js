@@ -1,5 +1,7 @@
 import React from 'react';
 import { View, Text, Button, TextInput, StyleSheet, ImageBackground, TouchableOpacity } from 'react-native';
+import { getAuth, signInAnonymously } from 'firebase/auth';
+
 
 const backgroundColors = {
     black: { backgroundColor: '#000000'},
@@ -184,3 +186,24 @@ const styles = StyleSheet.create({
         borderColor: "#5f5f5f",
       },
 })
+
+
+const auth = getAuth();
+
+const onStartChattingPress = () => {
+  signInAnonymously(auth)
+    .then((userCredential) => {
+      const user = userCredential.user;
+      if (user) {
+        navigation.navigate('Chat', {
+          userID: user.uid,
+          name: name,
+          color: this.state.color,
+        });
+      }
+    })
+    .catch((error) => {
+      // Handle error
+      console.error("Error signing in anonymously: ", error);
+    });
+};  
