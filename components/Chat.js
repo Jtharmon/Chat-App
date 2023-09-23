@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { StyleSheet, View, Text, KeyboardAvoidingView, Platform } from 'react-native';
 import { GiftedChat, Bubble } from "react-native-gifted-chat";
+import { collection, getDocs, addDoc, onSnapshot } from "firebase/firestore";
 
 const Chat = ({ route, navigation, db, isConnected }) => {
   const { name, color } = route.params;  //Brings name and bg color selected to Chat
@@ -28,28 +29,18 @@ const Chat = ({ route, navigation, db, isConnected }) => {
     navigation.setOptions({ title: name });
   }, []);
 
-  useEffect(() => {
-    setMessages([
-      {
-        _id: 1,
-        text: 'Hello developer',
-        createdAt: new Date(),
-        user: {
-          _id: 2,
-          name: 'React Native',
-          avatar: 'https://placeimg.com/140/140/any',
-        },
-      },
-      {
-        _id: 2,
-        text: 'This is a system message',
-        createdAt: new Date(),
-        system: true,
-      },
+    useEffect(() => {
+      const unsubMessages = onSnapshot(collection(db, "messages"), (documentsSnapshot) => {
+        let newMessages = [];
+        documentsSnapshot.forEach(doc => {
+          newMessages.push({ id: doc.id, ...doc.data() })
+        });
+        setMessages(newMessages);
+      });
+  }, 
 
-    
-    ]);
-  }, []);
+
+  []);
 
   return (
     <View style={{ flex: 1, backgroundColor: color }}>

@@ -1,209 +1,178 @@
-import React from 'react';
-import { View, Text, Button, TextInput, StyleSheet, ImageBackground, TouchableOpacity } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  Text,
+  TextInput,
+  ImageBackground,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Alert,
+  Platform,
+} from 'react-native';
+import { useState } from 'react';
 import { getAuth, signInAnonymously } from 'firebase/auth';
 
+const bgColors = {
+  black: { backgroundColor: '#090C08' },
+  purple: { backgroundColor: '#474056' },
+  blue: { backgroundColor: '#8A95A5' },
+  green: { backgroundColor: '#B9C6AE' },
+};
 
-const backgroundColors = {
-    black: { backgroundColor: '#000000'},
-    grey: { backgroundColor: '#8a95a5'},
-    purple: { backgroundColor: '#474056'},
-    green: { backgroundColor: '#94ae89'}
-}
+const Start = ({ navigation }) => {
+  const [name, setName] = useState('');
+  const [color, setColor] = useState(bgColors.black);
 
-export default class Start extends React.Component {
-   
-    constructor(props) {
-        super(props);
-        this.state = { name: '', color: ''};
-    }
-    render () {
-        const { black, grey, purple, green} = backgroundColors;
-        return (
-            <View style={styles.container}>
-                <ImageBackground
-                  //source={require('../assets/background-img.jpg')}
-                  style={[styles.container, styles.image]}
-                >
-                    
-                  <Text style={styles.title} >Chat App</Text>
+  //firebase auth
+  const auth = getAuth();
 
-                  <View style={styles.inputBox} >
-                     <TextInput
-                       style={styles.nameBox}
-                       onChangeText={(name) => this.setState({ name })}
-                       value={this.state.name}
-                       placeholder='Enter your Name'
-                      />
+  //anonymous authentication, passes uid, name and color
+  const signInUser = () => {
+    signInAnonymously(auth)
+      .then((result) => {
+        navigation.navigate('Chat', {
+          userID: result.user.uid,
+          name: name,
+          color: color,
+        });
+        //Alert.alert('Signed in Successfully');
+      })
+      .catch((error) => {
+        console.log(error);
+        Alert.alert('Unable to sign in');
+      });
+  };
 
-                      <View>
-                        <Text style={styles.colorSelector} >Choose your Background:</Text>
-                        <View style={styles.colorWrapper}>
-                            <TouchableOpacity 
-                              style={[styles.color, 
-                              black,
-                              this.state.color === black.backgroundColor
-                              ? styles.colorSelected
-                              : {}
-                            ]}
-                              onPress={() =>
-                              this.setState({ color: black.backgroundColor })
-                              }
-                            />
 
-                            <TouchableOpacity style={[
-                                styles.color, 
-                                grey,
-                                this.state.color === grey.backgroundColor
-                                ? styles.colorSelected
-                                : {}
-                            ]}
-                              onPress={() =>
-                              this.setState({ color: grey.backgroundColor })
-                              }
-                            />
-
-                            <TouchableOpacity style={[
-                                styles.color, 
-                                purple,
-                                this.state.color === purple.backgroundColor
-                                ? styles.colorSelected
-                                : {}
-                            ]}
-                              onPress={() =>
-                              this.setState({ color: purple.backgroundColor })
-                              }
-                            />
-
-                            <TouchableOpacity style={[
-                                styles.color,
-                                green,
-                                this.state.color === green.backgroundColor
-                                ? styles.colorSelected
-                                : {}
-                            ]}
-                              onPress={() =>
-                              this.setState({ color: green.backgroundColor })
-                              }
-                            />
-                        </View>
-                      </View>
-                      <TouchableOpacity
-                        style={[styles.nameBox, styles.chatBox]}
-                       // title='Go to Chat'
-                        onPress={() => 
-                            // console.log("start",this.props)
-                        this.props.navigation.navigate('Chat', 
-                        {
-                             name: this.state.name, 
-                             color: this.state.color
-                        })
-                        }
-                        >
-                            <Text style={[styles.colorSelector, styles.chatBoxText]} >
-                                Start Chatting
-                            </Text>
-                        </TouchableOpacity>
-                  </View>
-                </ImageBackground>
-            </View>
-        )
-    }
-}
+  return (
+    <View style={styles.container}>
+        <Text
+          style={[
+            styles.appTitle,
+            Platform.OS === 'ios' && { paddingTop: 30 },
+          ]}>
+          Chat!
+        </Text>
+        <KeyboardAvoidingView
+          style={[styles.whiteBox, styles.ios]}
+          behavior="padding">
+          <TextInput
+            style={styles.textInput}
+            value={name}
+            onChangeText={setName}
+            placeholder="Enter name"
+            placeholderTextColor="rgba(117, 128, 131, 0.5)"
+          />
+          <Text style={styles.bgColor}>Choose Background Color:</Text>
+          <View style={styles.colorContainer}>
+            <TouchableOpacity
+              style={[styles.circle, bgColors.black]}
+              onPress={() => {
+                //console.log('Selected color:', bgColors.black.backgroundColor);
+                setColor(bgColors.black);
+              }}></TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.circle, bgColors.purple]}
+              onPress={() => setColor(bgColors.purple)}></TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.circle, bgColors.blue]}
+              onPress={() => setColor(bgColors.blue)}></TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.circle, bgColors.green]}
+              onPress={() => setColor(bgColors.green)}></TouchableOpacity>
+          </View>
+          <TouchableOpacity
+            style={[styles.button, { display: 'flex' }]}
+            onPress={signInUser}>
+            <Text style={styles.buttonText}>Start Chatting</Text>
+          </TouchableOpacity>
+          {/* {Platform.OS === 'ios' ? (
+            <KeyboardAvoidingView behavior="padding"/>) : null}*/}
+        </KeyboardAvoidingView>
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-
-    image: {
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-    },
-
-    title: {
-        color: '#fff',
-        fontSize: 50,
-        fontWeight: '600',
-        marginTop: 60
-    },
-
-    inputBox: {
-        backgroundColor: '#fff',
-        marginBottom: 15,
-        height: '44%',
-        width: '88%',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingVertical: 20
-    },
-
-    nameBox: {
-       height: 50,
-       width: '88%',
-       borderColor: 'grey',
-       borderWidth: 1,
-       borderRadius: 2,
-       color: '#757083',
-       opacity: 50,
-       fontSize: 16,
-       fontWeight: '300',
-       paddingLeft: 10
-    },
-
-    colorSelector: {
-        textAlign: 'center',
-        fontSize: 16,
-        fontWeight: '300',
-        color: '#757083',
-        opacity: 100
-    },
-
-   colorWrapper: {
-    flexDirection: 'row'
-   },
-
-   color: {
+  container: {
+    flex: 1,
+  },
+  appTitle: {
+    flex: 2,
+    fontSize: 45,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    alignSelf: 'center',
+    paddingTop: 75,
+  },
+  yourName: {
+    fontSize: 16,
+    fontWeight: '300',
+    color: 'rgba(117, 128, 131, 0.5)',
+  },
+  textInput: {
+    fontSize: 16,
+    fontWeight: '300',
+    width: '88%',
+    padding: 15,
+    borderWidth: 1,
+    justifyContent: 'center',
+    color: '#757083',
+    borderColor: '#757083',
+  },
+  bgColor: {
+    fontSize: 16,
+    fontWeight: '300',
+    color: 'rgba(117, 128, 131, 1)',
+    paddingTop: 10,
+  },
+  image: {
+    height: '100%',
+    width: '100%',
+  },
+  circle: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    margin: 10
-   },
+    margin: 10,
+  },
+  whiteBox: {
+    flex: 1.2,
+    backgroundColor: 'white',
+    width: '88%',
+    height: '44%',
+    alignItems: 'center',
+    margin: 25,
+    alignSelf: 'center',
+    padding: 25,
+    borderRadius: 15,
+  },
+  colorContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    padding: 10,
+  },
+  button: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    width: '88%',
+    height: 45,
+    backgroundColor: '#757083',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 10,
+  },
 
-    chatBox: {
-        backgroundColor: '#757083',
-        justifyContent: 'center'
-    },
+  buttonText: {
+    color: '#FFF',
+    fontWeight: '600',
+    fontSize: 18,
+  },
+  icon: {
+    marginRight: 10,
+  },
+  ios: {},
+});
 
-    chatBoxText: {
-        color: '#fff',
-        fontWeight: '300'
-    },
-
-    colorSelected: {
-        borderStyle: "solid",
-        borderWidth: 2,
-        borderColor: "#5f5f5f",
-      },
-})
-
-
-const auth = getAuth();
-
-const onStartChattingPress = () => {
-  signInAnonymously(auth)
-    .then((userCredential) => {
-      const user = userCredential.user;
-      if (user) {
-        navigation.navigate('Chat', {
-          userID: user.uid,
-          name: name,
-          color: this.state.color,
-        });
-      }
-    })
-    .catch((error) => {
-      // Handle error
-      console.error("Error signing in anonymously: ", error);
-    });
-};  
+export default Start;
