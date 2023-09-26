@@ -3,6 +3,8 @@ import { StyleSheet, View, Text, KeyboardAvoidingView, Platform } from 'react-na
 import { GiftedChat, Bubble } from "react-native-gifted-chat";
 import { collection, onSnapshot } from "firebase/firestore";
 import AsyncStorage from "@react-native-async-storage/async-storage"; // Import AsyncStorage
+import CustomActions from './CustomActions'; // Import CustomActions
+
 
 const Chat = ({ route, navigation, db, isConnected }) => {
   const { name, color } = route.params;
@@ -71,18 +73,13 @@ const Chat = ({ route, navigation, db, isConnected }) => {
 
   return (
     <View style={{ flex: 1, backgroundColor: color }}>
-      <GiftedChat
-        messages={messages}
-        renderBubble={renderBubble}
-        onSend={(newMessages) => onSend(newMessages)}
-        user={{
-          _id: 1
-        }}
-        // Disable InputToolbar when offline
-        renderInputToolbar={(props) => (
-          isConnected ? <GiftedChat.InputToolbar {...props} /> : null
-        )}
-      />
+<GiftedChat
+  messages={messages}
+  onSend={onSend}
+  user={{ _id: 1 }}
+  renderBubble={renderBubble}
+  renderActions={(props) => <CustomActions {...props} />}
+/>
       {Platform.OS === 'android' ? <KeyboardAvoidingView behavior="height" /> : null }
       {Platform.OS === 'ios' ? <KeyboardAvoidingView behavior="padding" /> : null }
     </View>
